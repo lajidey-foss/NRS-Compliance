@@ -1,0 +1,122 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-09-11 23:05:41.283438",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "api_integration_tab",
+  "enviroment",
+  "section_break_infd",
+  "base_url_sandbox",
+  "base_url_production",
+  "column_break_oejy",
+  "prn_template",
+  "tab_2_tab",
+  "access_provider_section",
+  "access_points_provider",
+  "categories_section",
+  "default_vat",
+  "column_break_lkku",
+  "payment_means"
+ ],
+ "fields": [
+  {
+   "fieldname": "api_integration_tab",
+   "fieldtype": "Tab Break",
+   "label": "API Integration"
+  },
+  {
+   "fieldname": "enviroment",
+   "fieldtype": "HTML",
+   "label": "Enviroment "
+  },
+  {
+   "fieldname": "section_break_infd",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "base_url_sandbox",
+   "fieldtype": "Data",
+   "label": "Base URL Sandbox"
+  },
+  {
+   "fieldname": "base_url_production",
+   "fieldtype": "Data",
+   "label": "Base URL Production"
+  },
+  {
+   "fieldname": "tab_2_tab",
+   "fieldtype": "Tab Break",
+   "label": "Tools"
+  },
+  {
+   "fieldname": "column_break_oejy",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "prn_template",
+   "fieldtype": "Code",
+   "label": "PRN Template"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "access_provider_section",
+   "fieldtype": "Section Break",
+   "label": "Access Provider"
+  },
+  {
+   "fieldname": "access_points_provider",
+   "fieldtype": "Select",
+   "label": "Access Points Provider",
+   "options": "MBS DEFAULT"
+  },
+  {
+   "fieldname": "default_vat",
+   "fieldtype": "Select",
+   "label": "Default VAT",
+   "options": "STANDARD_VAT\nLOCAL_SALES_TAX\nEXEMPTED\nZERO_VAT"
+  },
+  {
+   "fieldname": "categories_section",
+   "fieldtype": "Section Break",
+   "label": "Categories"
+  },
+  {
+   "fieldname": "column_break_lkku",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "payment_means",
+   "fieldtype": "Select",
+   "label": "Payment Means",
+   "options": "97\n48"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-09-12 09:13:33.072434",
+ "modified_by": "Administrator",
+ "module": "NRS Compliance",
+ "name": "NRS Compliance Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
