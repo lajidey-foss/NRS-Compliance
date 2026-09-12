@@ -6,6 +6,8 @@
  "engine": "InnoDB",
  "field_order": [
   "api_integration_tab",
+  "nrs_enabled",
+  "column_break_npuc",
   "enviroment",
   "section_break_infd",
   "base_url_sandbox",
@@ -91,13 +93,23 @@
    "fieldtype": "Select",
    "label": "Payment Means",
    "options": "97\n48"
+  },
+  {
+   "default": "0",
+   "fieldname": "nrs_enabled",
+   "fieldtype": "Check",
+   "label": "NRS Enabled"
+  },
+  {
+   "fieldname": "column_break_npuc",
+   "fieldtype": "Column Break"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-09-12 09:13:33.072434",
+ "modified": "2026-09-12 13:58:36.583970",
  "modified_by": "Administrator",
  "module": "NRS Compliance",
  "name": "NRS Compliance Settings",
