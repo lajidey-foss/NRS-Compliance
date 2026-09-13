@@ -176,18 +176,16 @@ def _get_nrs_custom_fields():
             },
             {
                 "fieldname": "nrs_registered_state",
-                "label": "Registered State",
+                "label": "FIRS Registered State",
                 "fieldtype": "Select",
                 "insert_after": "nrs_col_break_v",
                 "options": _NRS_STATES,
-                "description": "[Optional] State where PAYE is remitted",
             },
             {
                 "fieldname": "nrs_sirs_code",
-                "label": "State IRS Code",
+                "label": "FIRS State Code",
                 "fieldtype": "Data",
                 "insert_after": "nrs_registered_state",
-                "description": "[Optional] State Revenue Service employer code",
             },
             {
                 "fieldname": "nrs_col_break_vi",
@@ -199,7 +197,6 @@ def _get_nrs_custom_fields():
                 "label": "FIRS ITF Liable",
                 "fieldtype": "Check",
                 "insert_after": "nrs_col_break_vi",
-                "description": "[Optional] Company has 5+ employees OR ₦50M+ annual payroll",
                 "default": "1",
             },
             {
@@ -214,7 +211,6 @@ def _get_nrs_custom_fields():
                 "label": "Street Address",
                 "fieldtype": "Data",
                 "insert_after": "nrs_address_section",
-                "description": "Street address sent in NRS UBL e-invoice payload",
             },
             {
                 "fieldname": "nrs_city",
@@ -239,7 +235,6 @@ def _get_nrs_custom_fields():
                 "fieldtype": "Select",
                 "insert_after": "ng_postal_code",
                 "options": _NRS_STATES,
-                "description": "State included in NRS e-invoice postal address",
             },
             {
                 "fieldname": "nrs_col_break_viii",
@@ -251,7 +246,6 @@ def _get_nrs_custom_fields():
                 "label": "Local Government Area",
                 "fieldtype": "Data",
                 "insert_after": "nrs_col_break_viii",
-                "description": "LGA included in NRS e-invoice postal address",
             },
             {
                 "fieldname": "nrs_crypto_section",
@@ -264,7 +258,6 @@ def _get_nrs_custom_fields():
                 "fieldtype": "Small Text",
                 "label": "Public Key (base64)",
                 "insert_after": "nrs_crypto_section",
-                "description": "The public_key value from crypto_keys.txt (base64-encoded PEM). Used to encrypt the QR code payload on printed invoices."
             },
             {
                 "fieldname": "nrs_col_break_ix",
@@ -276,7 +269,6 @@ def _get_nrs_custom_fields():
                 "fieldtype": "Small Text",
                 "label": "Certificate (base64)",
                 "insert_after": "nrs_col_break_ix",
-                "description": "The certificate value from crypto_keys.txt. Included in the encrypted QR payload."
             },
 
         ],
@@ -285,9 +277,9 @@ def _get_nrs_custom_fields():
 
             {
                 "fieldname": "nrs_details_tab",
-                "label": "NRS Info",
+                "label": "NRS Data",
                 "fieldtype": "Tab Break",
-                "insert_after": "portal_users_tab",
+                "insert_after": "portal_users",
             },
             {
                 "fieldname": "nrs_information_section",
@@ -300,13 +292,14 @@ def _get_nrs_custom_fields():
                 "label": "TIN",
                 "fieldtype": "Data",
                 "insert_after": "nrs_information_section",
-                "description": "Required for B2B NRS e-invoicing",
+                "description": "For B2B NRS e-invoicing",
             },
             {
                 "fieldname": "nrs_rc_number",
                 "label": "RC Number",
                 "fieldtype": "Data",
                 "insert_after": "nrs_tin",
+                "description": "For B2C NRS e-invoicing",
             },
             {
                 "fieldname": "nrs_invoice_kind",
@@ -314,7 +307,7 @@ def _get_nrs_custom_fields():
                 "fieldtype": "Select",
                 "options": "\nB2C\nB2B\nB2G",
                 "insert_after": "nrs_rc_number",
-                "description": "NRS invoice classification. Leave blank to auto-detect: B2B if TIN is set, B2C otherwise.",
+                "description": "NRS invoice classification. if TIN set as B2B, otherwise B2C.",
             },
             {
                 "fieldname": "nrs_state",
@@ -322,32 +315,22 @@ def _get_nrs_custom_fields():
                 "fieldtype": "Select",
                 "insert_after": "nrs_invoice_kind",
                 "options": _NRS_STATES,
-                "description": "State included in NRS e-invoice buyer address",
             },
             {
                 "fieldname": "nrs_lga",
                 "label": "Local Government Area",
                 "fieldtype": "Data",
                 "insert_after": "nrs_state",
-                "description": "LGA included in NRS e-invoice buyer address",
             },
         ],
         # ── Item ──────────────────────────────────────────────────────────────
         "Item": [
-            {
-                "fieldname": "nrs_section",
-                "label": "NRS Classification",
-                "fieldtype": "Section Break",
-                "insert_after": "stock_uom",
-                "collapsible": 1,
-            },
             {
                 "fieldname": "nrs_tem_type",
                 "label": "NRS Item Type",
                 "fieldtype": "Select",
                 "options": "\nProduct\nService",
                 "insert_after": "stock_uom",
-                "description": "NRS Harmonized System product code — required for goods in e-invoices",
             },
             {
                 "fieldname": "nrs_hs_code",
@@ -356,7 +339,7 @@ def _get_nrs_custom_fields():
                 "options": "NRS HS Code",
                 "insert_after": "nrs_tem_type",
                 "depends_on": "eval: doc.nrs_tem_type == 'Product'",
-                "description": "NRS Harmonized System product code — required for goods in e-invoices",
+                "description": "NRS Harmonized System product code — required for product item in e-invoices",
             },
             {
                 "fieldname": "nrs_service_code",
