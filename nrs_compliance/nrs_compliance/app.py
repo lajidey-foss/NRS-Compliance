@@ -29,7 +29,8 @@ def _get_settings(company_name=None):
     # get all needed key pairs from app settings and company nrs tab
     combined = {
         "nrs_enabled": app_settings.nrs_enabled,
-        "company_name": company.company_name
+        "company_name": company.company_name,
+        "nrs_service_id": company.nrs_service_id
     }
 
     return combined
