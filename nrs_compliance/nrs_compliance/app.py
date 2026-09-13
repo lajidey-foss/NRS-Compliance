@@ -30,7 +30,8 @@ def _get_settings(company_name=None):
     combined = {
         "nrs_enabled": app_settings.nrs_enabled,
         "company_name": company.company_name,
-        "nrs_service_id": company.nrs_service_id
+        "nrs_service_id": company.nrs_service_id,
+        "nrs_business_id": company.nrs_business_id
     }
 
     return combined
@@ -51,3 +52,58 @@ def _headers(settings) -> dict:
         "x-api-secret": settings.get_password("einvoice_api_secret"),
         "Content-Type": "application/json",
     }
+
+def _build_postal_address(
+    street: str, city: str, postal_zone: str, country: str,
+    state: str = "", lga: str = "",
+) -> dict:
+    addr = {
+        "street_name": street or "",
+        "city_name": city or "",
+        "postal_zone": postal_zone or "",
+        "country": country or "NG",
+    }
+    if state:
+        addr["state"] = state
+    if lga:
+        addr["lga"] = lga
+    return addr
+
+def _build_tax_subtotals(doc, default_vat_rate: float) -> tuple[list[dict], float]:
+    """
+    Get TaxTotal subtotals
+    """
+    #. !ISSUE: function to return tax category default to "STANDARD_VAT"
+
+    merged: dict[str, dict] = {} 
+
+    for tax_row in (doc.taxes or []):
+        amount = float(tax_row.tax_amount or 0)
+        if amount == 0:
+            continue
+        rate = float(tax_row.rate or 0)
+        category = "STANDARD_VAT" # function to get tax_category
+        if category in merged:
+            merged[category]["tax_amount"] = round(merged[category]["tax_amount"] + amount, 2)
+        else:
+            merged[category] = {
+                "taxable_amount": round(float(doc.net_total), 2),
+                "tax_amount": round(amount, 2),
+                "tax_category": {"id": category, "percent": rate},
+            }
+
+    if not merged:
+        # tax rows is null — fall back to configured default
+        category ="STANDARD_VAT" # function to get tax_category
+        total_vat = round(float(doc.net_total) * (default_vat_rate / 100), 2)
+        return [
+            {
+                "taxable_amount": round(float(doc.net_total), 2),
+                "tax_amount": total_vat,
+                "tax_category": {"id": category, "percent": default_vat_rate},
+            }
+        ], total_vat
+
+    subtotals = list(merged.values())
+    total_vat = round(sum(s["tax_amount"] for s in subtotals), 2)
+    return subtotals, total_vat
