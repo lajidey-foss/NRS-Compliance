@@ -1,0 +1,225 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-09-13 13:21:43.817087",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "sales_invoice",
+  "invoice_date",
+  "submitted_at",
+  "column_break_twgz",
+  "invoice_type",
+  "cleared_at",
+  "column_break_kfvg",
+  "status",
+  "csid",
+  "irn",
+  "section_break_nmug",
+  "total_exclude_vat",
+  "vat_amount",
+  "grand_total",
+  "column_break_qoir",
+  "seller_tin",
+  "buyer_tin",
+  "encrypted_qr_code",
+  "column_break_wpan",
+  "retry_count",
+  "last_retry",
+  "max_retries",
+  "section_break_nted",
+  "api_response",
+  "payment_status",
+  "column_break_hgjd",
+  "nrs_status",
+  "payload_schema",
+  "section_break_xurs",
+  "error_message"
+ ],
+ "fields": [
+  {
+   "fieldname": "sales_invoice",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Sales Invoice",
+   "options": "Sales Invoice"
+  },
+  {
+   "fieldname": "invoice_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Invoice Type",
+   "options": "\nB2B\nB2C",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_twgz",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_kfvg",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Pending"
+  },
+  {
+   "fieldname": "submitted_at",
+   "fieldtype": "Datetime",
+   "label": "Submitted At"
+  },
+  {
+   "fieldname": "irn",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "IRN",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cleared_at",
+   "fieldtype": "Datetime",
+   "label": "Cleared At",
+   "read_only": 1
+  },
+  {
+   "description": "Cryptographic Stamp Identifier from NRS.",
+   "fieldname": "csid",
+   "fieldtype": "Data",
+   "label": "CSID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "invoice_date",
+   "fieldtype": "Date",
+   "label": "Invoice Date"
+  },
+  {
+   "fieldname": "section_break_nmug",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "total_exclude_vat",
+   "fieldtype": "Currency",
+   "label": "Total Exclude Vat"
+  },
+  {
+   "fieldname": "vat_amount",
+   "fieldtype": "Currency",
+   "label": "VAT Amount"
+  },
+  {
+   "fieldname": "grand_total",
+   "fieldtype": "Currency",
+   "label": "Grand Total"
+  },
+  {
+   "fieldname": "column_break_qoir",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "seller_tin",
+   "fieldtype": "Data",
+   "label": "Seller TIN"
+  },
+  {
+   "fieldname": "buyer_tin",
+   "fieldtype": "Data",
+   "label": "Buyer TIN"
+  },
+  {
+   "fieldname": "encrypted_qr_code",
+   "fieldtype": "Attach Image",
+   "label": "Encrypted QR Code"
+  },
+  {
+   "fieldname": "column_break_wpan",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "retry_count",
+   "fieldtype": "Int",
+   "label": "Retry Count"
+  },
+  {
+   "fieldname": "last_retry",
+   "fieldtype": "Datetime",
+   "label": "Last Retry"
+  },
+  {
+   "fieldname": "max_retries",
+   "fieldtype": "Int",
+   "label": "Max Retries"
+  },
+  {
+   "fieldname": "section_break_nted",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "api_response",
+   "fieldtype": "Code",
+   "label": "Api Response",
+   "options": "JSON"
+  },
+  {
+   "fieldname": "payload_schema",
+   "fieldtype": "Code",
+   "label": "Payload Schema",
+   "options": "JSON"
+  },
+  {
+   "fieldname": "nrs_status",
+   "fieldtype": "Data",
+   "label": "NRS Status"
+  },
+  {
+   "fieldname": "payment_status",
+   "fieldtype": "Data",
+   "label": "Payment Status"
+  },
+  {
+   "fieldname": "column_break_hgjd",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_xurs",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "error_message",
+   "fieldtype": "Small Text",
+   "label": "Error Message"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-09-13 14:24:05.244383",
+ "modified_by": "Administrator",
+ "module": "NRS Compliance",
+ "name": "NRS EInvoice",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
