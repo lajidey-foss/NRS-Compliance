@@ -19,6 +19,7 @@
   "access_points_provider",
   "categories_section",
   "default_vat",
+  "default_vat_rate",
   "column_break_lkku",
   "payment_means"
  ],
@@ -103,13 +104,18 @@
   {
    "fieldname": "column_break_npuc",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "default_vat_rate",
+   "fieldtype": "Percent",
+   "label": "Default VAT Rate (%)"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-09-12 13:58:36.583970",
+ "modified": "2026-09-13 02:50:21.277174",
  "modified_by": "Administrator",
  "module": "NRS Compliance",
  "name": "NRS Compliance Settings",

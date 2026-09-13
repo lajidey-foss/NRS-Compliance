@@ -8,7 +8,7 @@ app_license = "mit"
 # Apps
 # ------------------
 
-# required_apps = []
+# required_apps = ["erpnext"]
 
 # Each item in the list will be shown as an app in the apps page
 # add_to_apps_screen = [
@@ -82,8 +82,9 @@ app_license = "mit"
 # Installation
 # ------------
 
+after_install = "nrs_compliance.utils.tasks.after_install"
+after_migrate = "nrs_compliance.utils.tasks.after_migrate"
 # before_install = "nrs_compliance.install.before_install"
-# after_install = "nrs_compliance.install.after_install"
 
 # Uninstallation
 # ------------
