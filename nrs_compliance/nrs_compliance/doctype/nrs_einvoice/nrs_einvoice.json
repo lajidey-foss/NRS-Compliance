@@ -11,6 +11,7 @@
   "column_break_twgz",
   "invoice_type",
   "cleared_at",
+  "invoice_code",
   "column_break_kfvg",
   "status",
   "csid",
@@ -66,7 +67,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Status",
-   "options": "Pending"
+   "options": "Pending\nSubmitted\nAuto-Retry\nCleared\nFailed\nCancelled"
   },
   {
    "fieldname": "submitted_at",
@@ -193,12 +194,17 @@
    "fieldname": "error_message",
    "fieldtype": "Small Text",
    "label": "Error Message"
+  },
+  {
+   "fieldname": "invoice_code",
+   "fieldtype": "Data",
+   "label": "Invoice Code"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-13 14:24:05.244383",
+ "modified": "2026-09-14 11:01:36.143835",
  "modified_by": "Administrator",
  "module": "NRS Compliance",
  "name": "NRS EInvoice",

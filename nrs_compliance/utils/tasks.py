@@ -410,7 +410,7 @@ def _get_nrs_custom_fields():
         ],
     }
 
-# ── Reference data ─────────────────────────────────────────────────────────
+# ─ Reference data
 
 _NRS_STATES = (
     "\nAbia\nAdamawa\nAkwa Ibom\nAnambra\nBauchi\nBayelsa\nBenue\nBorno"
