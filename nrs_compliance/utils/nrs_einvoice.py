@@ -1,12 +1,25 @@
 # Copyright (c) 2026, Jide Olayinka [Pivotage] and contributors
 # For license information, please see license.txt
 
-import frappe
-from frappe import _
-from frappe.utils import now_datetime, add_to_date, nowdate
+import json
 from typing import Any
-from nrs_compliance.nrs_compliance.app import EComplianceError, _get_settings,_build_postal_address,_build_tax_subtotals, _base_url, _headers
+
+import frappe
 import requests
+from frappe import _
+from frappe.utils import now_datetime
+
+from nrs_compliance.nrs_compliance.app import (
+    EComplianceError,
+    EComplianceValidationError,
+    _TRANSIENT_NRS_MARKERS,
+    _base_url,
+    _build_postal_address,
+    _build_tax_subtotals,
+    _get_settings,
+    _headers,
+    _APP_SETTINGS
+)
 
 _VALIDATE_IRN = "/api/v1/invoice/irn/validate"
 _VALIDATE_INVOICE_DATA = "/api/v1/invoice/validate"
@@ -340,3 +353,291 @@ def validate_irn(irn: str, invoice_reference: str, business_id: str) -> dict[str
     if not resp.ok:
         raise EComplianceError(f"IRN validation failed [{resp.status_code}]: {resp.text}")
     return resp.json() if resp.content else {}
+
+# ─ Submission
+#. 
+def submit_invoice_enqueued(sales_invoice: str) -> dict:
+    """
+    Updates in background queue when relevant lifecycle changes occur.
+    """
+    settings = _get_settings()
+    if not settings.einvoice_enabled:
+        return {}
+
+    #"firs_app.utils.firs_invoice.sync_sales_invoice_to_einvoice",
+    # add action later
+    frappe.enqueue(
+        "nrs_compliance.utils.nrs_einvoice.submit_invoice",
+        queue="long",
+        timeout=180,
+        enqueue_after_commit=True,
+        sales_invoice=sales_invoice,
+    )
+    return {"queued": True}
+
+#. 
+def submit_invoice(sales_invoice: str) -> dict[str, Any]:
+    """
+    Submission Process:
+      1. Generate IRN
+      2. Check invoice schema for error POST=> /validate
+      3. Submit valid payload POST=> /sign 
+    """
+     # from coy custom field
+    settings = _get_settings()
+   
+    if not settings.nrs_einvoice_enabled:
+        return {}
+
+    einvoice_doc = _get_or_create_einvoice(sales_invoice)
+    if einvoice_doc.status == "Cleared":
+        return {}
+
+    max_retries = einvoice_doc.max_retries or _MAX_RETRIES
+    if (einvoice_doc.retry_count or 0) >= max_retries:
+        # Stop auto-retrying and flag red for manual review instead of spinning
+        # forever as Auto-Retry.
+        _update_einvoice(
+            einvoice_doc, {}, {}, "Failed",
+            f"Automatic retries exhausted ({max_retries}). Needs manual review — "
+            "use the Nigeria → Submit to NRS button to retry.",
+            irn=einvoice_doc.irn,
+        )
+        frappe.log_error(
+            f"Max retries reached for Sales Invoice {sales_invoice}",
+            "NRS e-Invoice",
+        )
+        return {}
+
+    # Respect B2B-only setting
+    actual_buyer_tin = frappe.db.get_value(
+        "Customer",
+        frappe.db.get_value("Sales Invoice", sales_invoice, "customer"),
+        "nrs_tin",
+    ) or ""
+
+    # B2B only Company [or choose to activate for b2b only]
+    if settings.einvoice_b2b_only and not actual_buyer_tin:
+        return {}
+
+    try:
+        # Use existing IRN if already generated (retry scenario)
+        irn = einvoice_doc.irn or generate_irn(sales_invoice, settings)
+
+        payload = build_invoice_payload(sales_invoice, irn)
+
+        # Step 1: Validate
+        validate_resp = requests.post(
+            f"{_base_url(settings)}{_VALIDATE_INVOICE_DATA}",
+            json=payload,
+            headers=_headers(settings),
+            timeout=_TIMEOUT_LONG,
+        )
+
+        if validate_resp.status_code in (400, 422):
+            # NRS returns transient "try again later" errors as 400 too — those must
+            # auto-retry, not be marked permanently Failed.
+            if _is_transient_nrs_error(validate_resp.text):
+                _update_einvoice(einvoice_doc, payload, {}, "Auto-Retry",
+                                 f"NRS temporarily unavailable (validate), will retry: {validate_resp.text}",
+                                 irn=irn)
+                _flag_retry_pending()
+                return {}
+            _update_einvoice(einvoice_doc, payload, {}, "Failed",
+                             f"Validation error: {validate_resp.text}", irn=irn)
+            raise EComplianceValidationError(
+                f"NRS validation error [{validate_resp.status_code}]: {validate_resp.text}"
+            )
+
+        if not validate_resp.ok:
+            _update_einvoice(einvoice_doc, payload, {}, "Auto-Retry",
+                             f"Validate step error: {validate_resp.text}", irn=irn)
+            _flag_retry_pending()
+            return {}
+
+        # Step 2: Sign
+        sign_resp = requests.post(
+            f"{_base_url(settings)}/{_SIGN_INVOICE_SCHEMA}",
+            json=payload,
+            headers=_headers(settings),
+            timeout=_TIMEOUT_LONG,
+        )
+
+        if sign_resp.status_code in (400, 422):
+            # NRS often returns "unable to complete this operation at this time,
+            # kindly try again later" as a 400 during sign — that's transient and
+            # must auto-retry, not be marked permanently Failed.
+            if _is_transient_nrs_error(sign_resp.text):
+                _update_einvoice(einvoice_doc, payload, {}, "Auto-Retry",
+                                 f"NRS temporarily unavailable (sign), will retry: {sign_resp.text}",
+                                 irn=irn)
+                _flag_retry_pending()
+                return {}
+            _update_einvoice(einvoice_doc, payload, {}, "Failed",
+                             f"Sign error: {sign_resp.text}", irn=irn)
+            raise EComplianceValidationError(
+                f"NRS sign error [{sign_resp.status_code}]: {sign_resp.text}"
+            )
+
+        if not sign_resp.ok:
+            _update_einvoice(einvoice_doc, payload, {}, "Auto-Retry",
+                             f"Sign step error: {sign_resp.text}", irn=irn)
+            _flag_retry_pending()
+            return {}
+
+        result = sign_resp.json() if sign_resp.content else {}
+        csid = result.get("csid") or result.get("CSID") or ""
+
+        # Use NRS-returned QR if present; fall back to client-side RSA-encrypted QR
+        qr_data = result.get("qrCode") or result.get("QRCode") or result.get("qr_code") or ""
+        if not qr_data:
+            #from nigeria_compliance.nigeria_compliance.nrs.signing import generate_invoice_qr_data
+            from nrs_compliance.nrs_compliance.controllers.api import generate_invoice_qr_data
+            qr_data = generate_invoice_qr_data(irn, settings)
+
+        _update_einvoice(einvoice_doc, payload, result, "Submitted", "", irn=irn, csid=csid, qr_data=qr_data)
+
+        frappe.db.set_value("Sales Invoice", sales_invoice, {
+            "nrs_irn": irn,
+            "nrs_csid": csid,
+            "nrs_status": "Submitted",
+        })
+        return result
+
+    except (EComplianceValidationError, EComplianceError):
+        raise
+    except Exception as e:
+        _update_einvoice(einvoice_doc, {}, {}, "Auto-Retry", str(e))
+        _flag_retry_pending()
+        frappe.log_error(frappe.get_traceback(), "NRS e-Invoice Submission")
+
+
+#. 
+def _get_or_create_einvoice(sales_invoice: str):
+    name = frappe.db.get_value("NRS EInvoice", {"sales_invoice": sales_invoice}, "name")
+    if name:
+        return frappe.get_doc("NRS EInvoice", name)
+
+    inv = frappe.get_doc("Sales Invoice", sales_invoice)
+    customer_kind = frappe.db.get_value("Customer", inv.customer, "nrs_invoice_kind") or ""
+    buyer_tin = frappe.db.get_value("Customer", inv.customer, "nrs_tin") or ""
+    if customer_kind in ("B2B", "B2C", "B2G"):
+        invoice_kind = customer_kind
+    elif buyer_tin:
+        invoice_kind = "B2B"
+    else:
+        invoice_kind = "B2C"
+
+    doc = frappe.new_doc("NRS EInvoice")
+    doc.sales_invoice = sales_invoice
+    doc.status = "Pending"
+    doc.invoice_type = invoice_kind
+    doc.invoice_code = sales_invoice
+    doc.invoice_date = inv.posting_date
+    doc.seller_tin = frappe.db.get_value("Company", inv.company, "nrs_tin") or ""
+    doc.buyer_tin = frappe.db.get_value("Customer", inv.customer, "nrs_tin") or ""
+    doc.total_excluding_vat = inv.net_total
+    doc.grand_total = inv.grand_total
+    doc.max_retries = _MAX_RETRIES
+    doc.insert(ignore_permissions=True)
+    frappe.db.commit()
+    return doc
+
+#. 
+def _update_einvoice(doc, payload: dict, response: dict, status: str, error: str,
+                     irn: str = "", csid: str = "", qr_data: str = ""):
+    doc.status = status
+    if irn:
+        doc.irn = irn
+    if csid:
+        doc.csid = csid
+    doc.payload_schema = json.dumps(payload, indent=2, default=str)
+    doc.api_response = json.dumps(response, indent=2, default=str)
+    doc.error_message = error
+
+    if status in ("Failed", "Auto-Retry"):
+        doc.retry_count = (doc.retry_count or 0) + 1
+        doc.last_retry_at = now_datetime()
+
+    if status == "Submitted":
+        doc.submitted_at = now_datetime()
+        # Read computed VAT from the payload we sent — NRS sign response does not echo this back
+        try:
+            doc.vat_amount = (
+                payload.get("tax_total", [{}])[0].get("tax_amount")
+                or response.get("totalVAT")
+                or response.get("total_vat")
+                or 0
+            )
+        except (IndexError, TypeError):
+            doc.vat_amount = 0
+    if status == "Cleared":
+        doc.cleared_at = now_datetime()
+
+    if qr_data:
+        _attach_qr_code(doc, qr_data)
+
+    doc.save(ignore_permissions=True)
+    frappe.db.commit()
+
+#. 
+def _is_transient_nrs_error(text: str) -> bool:
+    """True if an NRS 400/422 response is a transient 'try again later' condition
+    rather than a real payload/validation rejection."""
+    t = (text or "").lower()
+    return any(marker in t for marker in _TRANSIENT_NRS_MARKERS)
+
+def _flag_retry_pending():
+    # Do not commit here — caller is responsible for transaction boundaries
+
+    # move it to company level
+    frappe.db.set_value(_APP_SETTINGS, _APP_SETTINGS, "is_retry_einvoice_pending", 1)
+
+# - Move block to app.py
+#. 
+def _attach_qr_code(einvoice_doc, qr_data: str):
+    """Generate a QR code PNG from qr_data and attach it to the Nigeria E-Invoice."""
+    try:
+        import base64
+        import io
+        import qrcode
+
+        # Low error-correction = fewer, larger modules, so a phone camera can read
+        # the dense (~344-char) encrypted payload at printed size. fit=True picks the
+        # smallest version that holds the data.
+        qr = qrcode.QRCode(
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=12,
+            border=4,
+        )
+        qr.add_data(qr_data)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        buf.seek(0)
+
+        file_doc = frappe.get_doc({
+            "doctype": "File",
+            "file_name": f"qr_{einvoice_doc.name}.png",
+            "content": base64.b64encode(buf.read()).decode(),
+            "decode": True,
+            "is_private": 0,
+            "attached_to_doctype": "Nigeria E-Invoice",
+            "attached_to_name": einvoice_doc.name,
+            "attached_to_field": "qr_code",
+        })
+        file_doc.insert(ignore_permissions=True)
+        einvoice_doc.qr_code = file_doc.file_url
+    except ImportError:
+        # qrcode missing — cannot render barcode; log and leave qr_code empty
+        frappe.log_error(
+            "qrcode package not installed — invoice will have no NRS barcode. Run: pip install qrcode",
+            "NRS QR Code Generation",
+        )
+        einvoice_doc.qr_code = ""
+    except Exception as e:
+        frappe.log_error(str(e), "NRS QR Code Generation")
+        einvoice_doc.qr_code = ""
+
+

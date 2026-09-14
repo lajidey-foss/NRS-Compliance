@@ -107,3 +107,13 @@ def _build_tax_subtotals(doc, default_vat_rate: float) -> tuple[list[dict], floa
     subtotals = list(merged.values())
     total_vat = round(sum(s["tax_amount"] for s in subtotals), 2)
     return subtotals, total_vat
+
+# NRS returns transient/server-busy conditions as HTTP 400 with one of these
+# phrases. They must be treated as retryable (Auto-Retry), NOT permanent failures.
+_TRANSIENT_NRS_MARKERS = (
+    "try again later",
+    "unable to complete this operation at this time",
+    "we are unable to process your request",
+    "temporarily unavailable",
+    "please try again",
+)
