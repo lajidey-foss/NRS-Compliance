@@ -5,7 +5,25 @@ import frappe
 from frappe import _
 from frappe.utils import now_datetime, add_to_date, nowdate
 from typing import Any
-from nrs_compliance.nrs_compliance.app import _get_settings,_build_postal_address,_build_tax_subtotals
+from nrs_compliance.nrs_compliance.app import EComplianceError, _get_settings,_build_postal_address,_build_tax_subtotals, _base_url, _headers
+import requests
+
+_VALIDATE_IRN = "/api/v1/invoice/irn/validate"
+_VALIDATE_INVOICE_DATA = "/api/v1/invoice/validate"
+_SIGN_INVOICE_SCHEMA = "/api/v1/invoice/sign"
+_AUTH_PATH = "/api/v1/utilities/authenticate"
+_UPDATE_EINVOICE = "/api/v1/invoice/update"
+_DOWNLOAD_INVOICE = "/api/v1/invoice/download"
+_CONFIRM_INVOICE = "/api/v1/invoice/confirm"
+_SEARCH_INVOICE = "/api/v1/invoice"
+_LOOKUP_INVOICE = "/api/v1/invoice/transmit/lookup"
+_TRANSMIT_INVOICE = "/api/v1/invoice/transmit"
+_REQUEST_TIMEOUT = 15 # seconds 
+_RETRY_COUNT = 2 
+_RETRY_DELAY = 2 # seconds
+_MAX_RETRIES = 3
+_TIMEOUT_SHORT = 30
+_TIMEOUT_LONG = 60
 
 # ─ IRN
 #. get serivice id from session company [from sales invoice]
@@ -48,7 +66,7 @@ def build_invoice_payload(sales_invoice: str, irn: str) -> dict[str, Any]:
 
     # _payment_code
 
-    # ── Business IDs
+    # ─ Business IDs
     business_id = (
         settings.get("nrs_business_id")
         or ""
@@ -64,7 +82,7 @@ def build_invoice_payload(sales_invoice: str, irn: str) -> dict[str, Any]:
             buyer_tin = f"RN-{rc_number}"
 
 
-    # ── Invoice kind (B2C / B2B / B2G)
+    # ─ Invoice kind (B2C / B2B / B2G)
     #  is TIN not null.
     customer_kind = frappe.db.get_value("Customer", doc.customer, "nrs_invoice_kind") or ""
     if customer_kind in ("B2B", "B2C", "B2G"):
@@ -187,6 +205,7 @@ def build_invoice_payload(sales_invoice: str, irn: str) -> dict[str, Any]:
                 "price_unit": quantity_code,
             },
         }
+
         # NRS line classification (per NRS Support): GOODS use hsn_code +
         # product_category; SERVICES use isic_code + service_category. The two
         # pairs are mutually exclusive on a line. The "category" is the code's
@@ -215,7 +234,7 @@ def build_invoice_payload(sales_invoice: str, irn: str) -> dict[str, Any]:
     tax_inclusive = round(float(doc.grand_total), 2)
     payable_amount = round(float(doc.outstanding_amount or doc.grand_total), 2)
 
-    # ── Allowance / charge (invoice-level discount) 
+    # ─ Allowance / charge (invoice-level discount) 
     allowance_charges = []
     if float(doc.get("additional_discount_amount") or 0) > 0:
         allowance_charges.append({
@@ -224,7 +243,7 @@ def build_invoice_payload(sales_invoice: str, irn: str) -> dict[str, Any]:
         })
 
     payload: dict[str, Any] = {
-        # ── Invoice header ──────────────────────────────────────────────────
+        # ─ Invoice header 
         "business_id": business_id,
         "irn": irn,
         "issue_date": str(doc.posting_date),
@@ -237,17 +256,17 @@ def build_invoice_payload(sales_invoice: str, irn: str) -> dict[str, Any]:
         "document_currency_code": doc.currency or "NGN",
         "tax_currency_code": "NGN",
 
-        # ── Buyer reference / order reference ─────────────────────────────
+        # ─ Buyer reference / order reference 
         **({"buyer_reference": doc.po_no} if doc.get("po_no") else {}),
         **({"order_reference": doc.po_no} if doc.get("po_no") else {}),
 
-        # ── Note (invoice remarks) ────────────────────────────────────────
+        # ─ Note (invoice remarks) 
         **({"note": doc.terms[:500]} if doc.get("terms") else {}),
 
-        # ── Billing reference (credit notes / debit notes) ────────────────
+        # ─ Billing reference (credit notes / debit notes) 
         **({"billing_reference": billing_reference} if billing_reference else {}),
 
-        # ── Supplier ────────────────────────────────────────────────────────
+        # ─ Supplier 
         "accounting_supplier_party": {
             "party_name": doc.company,
             "tin": seller_tin,
@@ -267,7 +286,7 @@ def build_invoice_payload(sales_invoice: str, irn: str) -> dict[str, Any]:
             "postal_address": buyer_address,
         },
 
-        # ── Payment ──────────────────────────────────────────────────────────
+        # ─ Payment 
         "payment_means": [
             {
                 "payment_means_code": payment_means_code,
@@ -276,10 +295,10 @@ def build_invoice_payload(sales_invoice: str, irn: str) -> dict[str, Any]:
         ],
         "payment_terms_note": doc.payment_terms_template or "",
 
-        # ── Allowances (invoice-level discounts) ──────────────────────────
+        # ─ Allowances (invoice-level discounts) 
         **({"allowance_charge": allowance_charges} if allowance_charges else {}),
 
-        # ── Tax ──────────────────────────────────────────────────────────────
+        # ─ Tax 
         "tax_total": [
             {
                 "tax_amount": total_vat,
@@ -287,7 +306,7 @@ def build_invoice_payload(sales_invoice: str, irn: str) -> dict[str, Any]:
             }
         ],
 
-        # ── Totals ────────────────────────────────────────────────────────────
+        # ─ Totals 
         "legal_monetary_total": {
             "line_extension_amount": round(total_line_extension, 2),
             "tax_exclusive_amount": tax_exclusive,
@@ -295,7 +314,29 @@ def build_invoice_payload(sales_invoice: str, irn: str) -> dict[str, Any]:
             "payable_amount": payable_amount,
         },
 
-        # ── Lines ─────────────────────────────────────────────────────────────
+        # ─ Lines 
         "invoice_line": invoice_lines,
     }
     return payload
+
+# ─ IRN Save[Draft] NRS Validation
+
+def validate_irn(irn: str, invoice_reference: str, business_id: str) -> dict[str, Any]:
+    """
+    POST=> /validate
+    Validates that the generated IRN is unique and correctly formatted before submission.
+    """
+    settings = _get_settings()
+    resp = requests.post(
+        f"{_base_url(settings)}{_VALIDATE_IRN}",
+        json={
+            "invoice_reference": invoice_reference,
+            "business_id": business_id,
+            "irn": irn,
+        },
+        headers=_headers(settings),
+        timeout=_TIMEOUT_SHORT,
+    )
+    if not resp.ok:
+        raise EComplianceError(f"IRN validation failed [{resp.status_code}]: {resp.text}")
+    return resp.json() if resp.content else {}
