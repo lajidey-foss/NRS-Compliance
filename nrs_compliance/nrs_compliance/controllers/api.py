@@ -1,3 +1,6 @@
+# Copyright (c) 2026, Jide Olayinka [Pivotage] and contributors
+# For license information, please see license.txt
+
 from __future__ import annotations
 
 import base64
@@ -26,8 +29,8 @@ def generate_invoice_qr_data(irn: str, settings=None) -> str:
         #from nrs_compliance.nrs_compliance.app import _get_settings  
         settings = _get_settings()
 
-    pub_key_b64 = (settings.get("einvoice_public_key") or "").strip()
-    certificate = (settings.get("einvoice_certificate") or "").strip()
+    pub_key_b64 = (settings.get("nrs_public_key") or "").strip()
+    certificate = (settings.get("nrs_certificate") or "").strip()
 
     if not pub_key_b64:
         return ""

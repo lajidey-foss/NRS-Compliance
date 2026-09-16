@@ -15,7 +15,7 @@ def after_install():
 def after_migrate():
     """ include function to remove obsolete custom fields """
     create_nrs_custom_fields()
-    set_default_compliance_settings() # toggle on for developer testing
+    #set_default_compliance_settings() # toggle on for developer testing
     frappe.db.commit()
 
 
@@ -57,9 +57,15 @@ def _get_nrs_custom_fields():
                 "insert_after": "nrs_business_information",
             },
             {
+                "fieldname": "nrs_einvoice_auto_submit",
+                "fieldtype": "Check",
+                "label": "Auto Submit on Invoice Submission",
+                "insert_after": "nrs_business_information",
+            },
+            {
                 "fieldname": "nrs_col_break_i",
                 "fieldtype": "Column Break",
-                "insert_after": "nrs_phone_number",
+                "insert_after": "nrs_einvoice_auto_submit",
             },
             {
                 "bold": 1,
@@ -143,17 +149,17 @@ def _get_nrs_custom_fields():
                 "insert_after": "nrs_col_break_iv",
             },
             {
-                "fieldname": "nrs_process_key",
-                "fieldtype": "Button",
-                "label": "Process Key",
+                "fieldname": "is_retry_einvoice_pending",
+                "fieldtype": "Check",
+                "label": "Is Unflag Retry Pending",
                 "insert_after": "nrs_service_id",
-                "hidden": 1,
+                "description": "Internal flag. Set to 1 when a server-side NRS APP error occurs. Cleared by the retry cron job."
             },
             {
                 "fieldname": "nrs_details_section",
                 "label": "NRS More Details",
                 "fieldtype": "Section Break",
-                "insert_after": "nrs_process_key",
+                "insert_after": "is_retry_einvoice_pending",
                 "collapsible": 1,
             },
             {
@@ -224,7 +230,7 @@ def _get_nrs_custom_fields():
                 "insert_after": "nrs_city",
             },
             {
-                "fieldname": "ng_postal_code",
+                "fieldname": "nrs_postal_code",
                 "label": "Postal Code",
                 "fieldtype": "Data",
                 "insert_after": "nrs_col_break_vii",
@@ -233,7 +239,7 @@ def _get_nrs_custom_fields():
                 "fieldname": "nrs_state",
                 "label": "State",
                 "fieldtype": "Select",
-                "insert_after": "ng_postal_code",
+                "insert_after": "nrs_postal_code",
                 "options": _NRS_STATES,
             },
             {
@@ -272,7 +278,7 @@ def _get_nrs_custom_fields():
             },
 
         ],
-        # ── Customer ─────────────────────────────────────────────────────────
+        # ─ Customer 
         "Customer": [
 
             {
@@ -292,14 +298,14 @@ def _get_nrs_custom_fields():
                 "label": "TIN",
                 "fieldtype": "Data",
                 "insert_after": "nrs_information_section",
-                "description": "For B2B NRS e-invoicing",
+                "description": "For B2B NRS einvoicing",
             },
             {
                 "fieldname": "nrs_rc_number",
                 "label": "RC Number",
                 "fieldtype": "Data",
                 "insert_after": "nrs_tin",
-                "description": "For B2C NRS e-invoicing",
+                "description": "For B2C NRS einvoicing",
             },
             {
                 "fieldname": "nrs_invoice_kind",
@@ -310,10 +316,15 @@ def _get_nrs_custom_fields():
                 "description": "NRS invoice classification. if TIN set as B2B, otherwise B2C.",
             },
             {
+                "fieldname": "nrs_col_break_ci",
+                "fieldtype": "Column Break",
+                "insert_after": "nrs_invoice_kind",
+            },
+            {
                 "fieldname": "nrs_state",
                 "label": "State",
                 "fieldtype": "Select",
-                "insert_after": "nrs_invoice_kind",
+                "insert_after": "nrs_col_break_ci",
                 "options": _NRS_STATES,
             },
             {
@@ -323,7 +334,7 @@ def _get_nrs_custom_fields():
                 "insert_after": "nrs_state",
             },
         ],
-        # ── Item ──────────────────────────────────────────────────────────────
+        # ─ Item 
         "Item": [
             {
                 "fieldname": "nrs_tem_type",
@@ -351,7 +362,7 @@ def _get_nrs_custom_fields():
                 "description": "NRS service code — required for service items in e-invoices",
             },
         ],
-        # ── Sales Invoice ─────────────────────────────────────────────────────
+        # ─ Sales Invoice 
         "Sales Invoice": [
             {
                 "fieldname": "nrs_section",
@@ -362,19 +373,18 @@ def _get_nrs_custom_fields():
             },
             {
                 "fieldname": "nrs_irn",
-                "label": "IRN",
+                "label": "NRS IRN",
                 "fieldtype": "Data",
                 "insert_after": "nrs_section",
                 "read_only": 0,
-                "description": "Invoice Reference Number from NRS MBS",
             },
             {
                 "fieldname": "nrs_csid",
-                "label": "CSID",
+                "label": "NRS CSID",
                 "fieldtype": "Data",
                 "insert_after": "nrs_irn",
                 "read_only": 0,
-                "description": "Cryptographic Stamp Identifier from NRS",
+                "description": "Cryptographic Stamp Identifier",
             },
             {
                 "fieldname": "nrs_status",
@@ -386,12 +396,16 @@ def _get_nrs_custom_fields():
                 "read_only": 1,
             },
             {
+                "fieldname": "nrs_col_break_sii",
+                "fieldtype": "Column Break",
+                "insert_after": "nrs_status",
+            },
+            {
                 "fieldname": "nrs_skip_einvoice",
                 "label": "Skip NRS E-Invoice",
                 "fieldtype": "Check",
-                "insert_after": "nrs_status",
-                "description": "When checked, this invoice is excluded from NRS e-invoicing. "
-                               "Use for internal transfers, adjustments, or invoices not subject to fiscalization.",
+                "insert_after": "nrs_col_break_sii",
+                "description": "When checked, this invoice is excluded from NRS einvoicing. Not subject to fiscalization.",
             },
             {
                 "fieldname": "nrs_payment_means",
