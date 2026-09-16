@@ -143,35 +143,39 @@ after_migrate = "nrs_compliance.utils.tasks.after_migrate"
 # Document Events
 # ---------------
 # Hook on document methods and events
+#"before_submit": "nrs_compliance.nrs_compliance.overrides.service.nrs_submit_compliance",
+#"on_submit": "nrs_compliance.nrs_compliance.overrides.service.on_sales_invoice_submit",
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+doc_events = {
+	"Sales Invoice": {
+		"validate": "nrs_compliance.nrs_compliance.overrides.service.fields_compliances",
+		"on_update": "nrs_compliance.nrs_compliance.overrides.service.nrs_submit_compliance",
+        "on_submit": "nrs_compliance.nrs_compliance.overrides.service.on_sales_invoice_submit",
+		
+	}
+}
 
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"nrs_compliance.tasks.all"
-# 	],
-# 	"daily": [
-# 		"nrs_compliance.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"nrs_compliance.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"nrs_compliance.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"nrs_compliance.tasks.monthly"
-# 	],
-# }
+scheduler_events = {
+	"cron": {
+		# Every 5 min: retry Auto-Retry e-invoices
+        "*/5 * * * *": [
+            "nrs_compliance.nrs_compliance.controllers.scheduler.retry_unflag_einvoices",
+        ],
+	},
+	#  "daily": [
+	# 	"nrs_compliance.tasks.daily"
+	# ],
+	# "hourly": [
+	# 	"nrs_compliance.tasks.hourly"
+	# ],
+	# "weekly": [
+	# 	"nrs_compliance.tasks.weekly"
+	# ], 
+	
+}
 
 # Testing
 # -------

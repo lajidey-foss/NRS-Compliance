@@ -21,7 +21,7 @@ def hs_codes_sync():
     """
     settings = _get_settings()
     # nrs_enabled from settings --> work on einvoice enabled from company
-    if not settings.nrs_enabled:
+    if not settings.get("nrs_enabled"):
         frappe.msgprint("e-Invoice is not enabled.", indicator="orange", alert=True)
         return {"synced": 0}
 
@@ -69,7 +69,7 @@ def sync_service_codes():
     service code from nrs into service code doctype
     """
     settings = _get_settings()
-    if not settings.nrs_enabled:
+    if not settings.get("nrs_enabled"):
         frappe.msgprint("e-Invoice is not enabled.", indicator="orange", alert=True)
         return {"synced": 0}
     

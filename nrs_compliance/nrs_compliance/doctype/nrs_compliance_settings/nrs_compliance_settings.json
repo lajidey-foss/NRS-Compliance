@@ -9,6 +9,8 @@
   "nrs_enabled",
   "column_break_npuc",
   "enviroment",
+  "column_break_thsm",
+  "env_switcher",
   "section_break_infd",
   "base_url_sandbox",
   "base_url_production",
@@ -21,7 +23,8 @@
   "default_vat",
   "default_vat_rate",
   "column_break_lkku",
-  "payment_means"
+  "payment_means",
+  "einvoice_b2b_only"
  ],
  "fields": [
   {
@@ -39,11 +42,13 @@
    "fieldtype": "Section Break"
   },
   {
+   "depends_on": "eval: doc.env_switcher == 0",
    "fieldname": "base_url_sandbox",
    "fieldtype": "Data",
    "label": "Base URL Sandbox"
   },
   {
+   "depends_on": "eval: doc.env_switcher == 1",
    "fieldname": "base_url_production",
    "fieldtype": "Data",
    "label": "Base URL Production"
@@ -109,13 +114,30 @@
    "fieldname": "default_vat_rate",
    "fieldtype": "Percent",
    "label": "Default VAT Rate (%)"
+  },
+  {
+   "fieldname": "column_break_thsm",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "env_switcher",
+   "fieldtype": "Check",
+   "label": "Prod Mode"
+  },
+  {
+   "default": "0",
+   "description": "Only submit invoices where the customer has a TIN. Uncheck to submit all invoices including B2C.",
+   "fieldname": "einvoice_b2b_only",
+   "fieldtype": "Check",
+   "label": "B2B Only (skip invoices without buyer TIN)"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-09-13 02:50:21.277174",
+ "modified": "2026-09-16 10:12:45.140631",
  "modified_by": "Administrator",
  "module": "NRS Compliance",
  "name": "NRS Compliance Settings",

@@ -2,6 +2,7 @@
 # For license information, please see license.txt
 
 import json
+import re
 from typing import Any
 
 import frappe
@@ -18,7 +19,6 @@ from nrs_compliance.nrs_compliance.app import (
     _build_tax_subtotals,
     _get_settings,
     _headers,
-    _APP_SETTINGS
 )
 
 _VALIDATE_IRN = "/api/v1/invoice/irn/validate"
@@ -31,43 +31,51 @@ _CONFIRM_INVOICE = "/api/v1/invoice/confirm"
 _SEARCH_INVOICE = "/api/v1/invoice"
 _LOOKUP_INVOICE = "/api/v1/invoice/transmit/lookup"
 _TRANSMIT_INVOICE = "/api/v1/invoice/transmit"
-_REQUEST_TIMEOUT = 15 # seconds 
-_RETRY_COUNT = 2 
-_RETRY_DELAY = 2 # seconds
+_REQUEST_TIMEOUT = 15  # seconds
+_RETRY_COUNT = 2
+_RETRY_DELAY = 2  # seconds
 _MAX_RETRIES = 3
 _TIMEOUT_SHORT = 30
 _TIMEOUT_LONG = 60
 
+
 # ─ IRN
-#. get serivice id from session company [from sales invoice]
+# Get service ID from session company [from sales invoice]
 
 def generate_irn(invoice_name: str, settings=None) -> str:
     """
-    include company in attribute
+    Include company in attribute.
     FIRS IRN template: {InvoiceNumber}-{ServiceID}-{YYYYMMDD}
 
     Note:
-      InvoiceNumber — alphanumeric only (stripped all hyphens and slashes)
+      InvoiceNumber — alphanumeric only (stripped of hyphens and slashes)
 
     Example: INV251200001-15KJ72IS-20251227
     """
     if settings is None:
         settings = _get_settings()
 
-    service_id = (settings.nrs_service_id or "").strip()
+    service_id = (settings.get("nrs_service_id") or "").strip()
     if not service_id:
-        frappe.throw(_("NRS Service ID is not configured in Nigeria Compliance Settings. "
-                       "Set the 8-character Service ID from your NRS dashboard."))
+        frappe.throw(
+            _(
+                "NRS Service ID is not configured in Nigeria Compliance Settings. "
+                "Set the 8-character Service ID from your NRS dashboard."
+            )
+        )
 
-    # Strip all non-alphanumeric characters — NRS rejects hyphens, slashes, spaces
-    import re
+    # Strip all non-alphanumeric characters — NRS rejects hyphens, slashes, spaces.
     invoice_number = re.sub(r"[^A-Za-z0-9]", "", invoice_name)
-    # Use the invoice's posting date — not today — so backdated invoices have matching IRNs
     posting_date = frappe.db.get_value("Sales Invoice", invoice_name, "posting_date")
-    date_str = str(posting_date).replace("-", "") if posting_date else now_datetime().strftime("%Y%m%d")
+    date_str = (
+        str(posting_date).replace("-", "")
+        if posting_date
+        else now_datetime().strftime("%Y%m%d")
+    )
     return f"{invoice_number}-{service_id}-{date_str}"
 
-# ─ eInvoice schema payload builder 
+
+# ─ eInvoice schema payload builder
 
 def build_invoice_payload(sales_invoice: str, irn: str) -> dict[str, Any]:
     """
@@ -76,8 +84,6 @@ def build_invoice_payload(sales_invoice: str, irn: str) -> dict[str, Any]:
     """
     doc = frappe.get_doc("Sales Invoice", sales_invoice)
     settings = _get_settings(doc.company)
-
-    # _payment_code
 
     # ─ Business IDs
     business_id = (
@@ -94,9 +100,7 @@ def build_invoice_payload(sales_invoice: str, irn: str) -> dict[str, Any]:
         if rc_number:
             buyer_tin = f"RN-{rc_number}"
 
-
     # ─ Invoice kind (B2C / B2B / B2G)
-    #  is TIN not null.
     customer_kind = frappe.db.get_value("Customer", doc.customer, "nrs_invoice_kind") or ""
     if customer_kind in ("B2B", "B2C", "B2G"):
         invoice_kind = customer_kind
@@ -119,16 +123,24 @@ def build_invoice_payload(sales_invoice: str, irn: str) -> dict[str, Any]:
             if original_irn:
                 billing_reference = [{"irn": original_irn, "issue_date": str(original_date)}]
 
-
     # ─ Invoice type
-    #. !ISSUE: function to return invoice type code default to 381
+    # TODO: Move this into a helper that resolves the correct invoice type code.
     invoice_type_code = "381"
 
-    # ─ Addresses 
+    # ─ Addresses
     company_fields = frappe.db.get_value(
-        "Company", doc.company,
-        ["nrs_address", "nrs_city", "nrs_postal_code", "nrs_state", "nrs_lga",
-         "nrs_email", "nrs_phone_number", "nrs_business_description"],
+        "Company",
+        doc.company,
+        [
+            "nrs_address",
+            "nrs_city",
+            "nrs_postal_code",
+            "nrs_state",
+            "nrs_lga",
+            "nrs_email",
+            "nrs_phone_number",
+            "nrs_business_description",
+        ],
         as_dict=True,
     ) or {}
 
@@ -141,24 +153,22 @@ def build_invoice_payload(sales_invoice: str, irn: str) -> dict[str, Any]:
         lga=company_fields.get("nrs_lga") or "",
     )
     customer_fields = frappe.db.get_value(
-        "Customer", doc.customer,
-        ["nrs_state", "nrs_lga"],
-        as_dict=True,
+        "Customer", doc.customer, ["nrs_state", "nrs_lga"], as_dict=True
     ) or {}
 
-    # Resolve the linked Address document to get the actual street text
+    # Resolve the linked Address document to get the actual street text.
     customer_address_name = doc.get("customer_address") or ""
     addr_street, addr_city, addr_postal = "", "", ""
     if customer_address_name:
         addr = frappe.db.get_value(
-            "Address", customer_address_name,
+            "Address",
+            customer_address_name,
             ["address_line1", "city", "pincode"],
             as_dict=True,
         ) or {}
         addr_street = addr.get("address_line1") or ""
         addr_city = addr.get("city") or ""
         addr_postal = addr.get("pincode") or ""
-
 
     buyer_address = _build_postal_address(
         addr_street,
@@ -169,25 +179,26 @@ def build_invoice_payload(sales_invoice: str, irn: str) -> dict[str, Any]:
         lga=customer_fields.get("nrs_lga") or "",
     )
 
-    # ─ Tax — read actual ERPNext tax lines, fall back to settings default 
-    vat_rate = float(settings.einvoice_default_vat_rate or 7.5)
+    # ─ Tax — read actual ERPNext tax lines, fall back to settings default.
+    vat_rate = float(settings.get("einvoice_default_vat_rate") or 7.5)
     tax_subtotals, total_vat = _build_tax_subtotals(doc, vat_rate)
 
-    # ─ Payment means 
-    #. !ISSUE: function to return payment means code or get default from settings
-    payment_means_code = "97" #functon to get payment means
+    # ─ Payment means
+    # TODO: Build this from a helper instead of a hard-coded default.
+    payment_means_code = "97"
     due_date = str(doc.due_date) if doc.get("due_date") else str(doc.posting_date)
 
-    # ─ Line items 
+    # ─ Line items
     invoice_lines = []
     total_line_extension = 0.0
 
-    # Batch-fetch all item NRS fields to avoid N+1 queries
+    # Batch-fetch all item NRS fields to avoid N+1 queries.
     item_codes = [row.item_code for row in doc.items]
     item_fields_map: dict[str, dict] = {}
     if item_codes:
         for item_row in frappe.get_all(
-            "Item", filters={"name": ("in", item_codes)},
+            "Item",
+            filters={"name": ("in", item_codes)},
             fields=["name", "nrs_hs_code", "nrs_service_code"],
         ):
             item_fields_map[item_row.name] = item_row
@@ -200,9 +211,8 @@ def build_invoice_payload(sales_invoice: str, irn: str) -> dict[str, Any]:
         hs_code = (item_f.get("nrs_hs_code") or "").strip()
         service_code = (item_f.get("nrs_service_code") or "").strip()
 
-        # NRS UOM [qty code]
-        #. !ISSUE: function to return quantity code [uom] or set default EA 
-        quantity_code = "EA" #function to get quantity code
+        # TODO: resolve quantity code from UOM instead of defaulting to EA.
+        quantity_code = "EA"
 
         line = {
             "invoiced_quantity": float(row.qty),
@@ -219,25 +229,21 @@ def build_invoice_payload(sales_invoice: str, irn: str) -> dict[str, Any]:
             },
         }
 
-        # NRS line classification (per NRS Support): GOODS use hsn_code +
-        # product_category; SERVICES use isic_code + service_category. The two
-        # pairs are mutually exclusive on a line. The "category" is the code's
-        # description. before_submit_ng guarantees one code is present.
         if hs_code:
             line["hsn_code"] = hs_code
             line["product_category"] = (
                 frappe.db.get_value("NRS HS Code", hs_code, "description")
-                or row.item_group or "General"
+                or row.item_group
+                or "General"
             )
         elif service_code:
             line["isic_code"] = service_code
             line["service_category"] = (
                 frappe.db.get_value("NRS Service Code", service_code, "description")
-                or row.item_group or "General"
+                or row.item_group
+                or "General"
             )
         else:
-            # Unclassified — before_submit_ng should have blocked this; emit an
-            # empty hsn_code so NRS returns a clear, actionable rejection.
             line["hsn_code"] = ""
             line["product_category"] = row.item_group or "General"
 
@@ -247,16 +253,19 @@ def build_invoice_payload(sales_invoice: str, irn: str) -> dict[str, Any]:
     tax_inclusive = round(float(doc.grand_total), 2)
     payable_amount = round(float(doc.outstanding_amount or doc.grand_total), 2)
 
-    # ─ Allowance / charge (invoice-level discount) 
+    # ─ Allowance / charge (invoice-level discount)
     allowance_charges = []
     if float(doc.get("additional_discount_amount") or 0) > 0:
-        allowance_charges.append({
-            "charge_indicator": False,
-            "amount": round(float(doc.additional_discount_amount), 2),
-        })
+        allowance_charges.append(
+            {
+                "charge_indicator": False,
+                "amount": round(float(doc.additional_discount_amount), 2),
+            }
+        )
 
+    # "integrator_service_id": settings.get("einvoice_integrator_service_id") or "00000",
     payload: dict[str, Any] = {
-        # ─ Invoice header 
+        # ─ Invoice header
         "business_id": business_id,
         "irn": irn,
         "issue_date": str(doc.posting_date),
@@ -264,22 +273,18 @@ def build_invoice_payload(sales_invoice: str, irn: str) -> dict[str, Any]:
         "issue_time": now_datetime().strftime("%H:%M:%S"),
         "invoice_type_code": invoice_type_code,
         "invoice_kind": invoice_kind,
-        "integrator_service_id": settings.einvoice_integrator_service_id or "00000",
+        "integrator_service_id": "00000",
         "payment_status": "PENDING",
         "document_currency_code": doc.currency or "NGN",
         "tax_currency_code": "NGN",
-
-        # ─ Buyer reference / order reference 
+        # ─ Buyer reference / order reference
         **({"buyer_reference": doc.po_no} if doc.get("po_no") else {}),
         **({"order_reference": doc.po_no} if doc.get("po_no") else {}),
-
-        # ─ Note (invoice remarks) 
+        # ─ Note (invoice remarks)
         **({"note": doc.terms[:500]} if doc.get("terms") else {}),
-
-        # ─ Billing reference (credit notes / debit notes) 
+        # ─ Billing reference (credit notes / debit notes)
         **({"billing_reference": billing_reference} if billing_reference else {}),
-
-        # ─ Supplier 
+        # ─ Supplier
         "accounting_supplier_party": {
             "party_name": doc.company,
             "tin": seller_tin,
@@ -288,9 +293,7 @@ def build_invoice_payload(sales_invoice: str, irn: str) -> dict[str, Any]:
             "business_description": company_fields.get("nrs_business_description") or "",
             "postal_address": seller_address,
         },
-
-        # ─ Customer 
-        # email_id, mobile_no
+        # ─ Customer
         "accounting_customer_party": {
             "party_name": doc.customer_name,
             "tin": buyer_tin,
@@ -298,8 +301,7 @@ def build_invoice_payload(sales_invoice: str, irn: str) -> dict[str, Any]:
             "telephone": frappe.db.get_value("Customer", doc.customer, "mobile_no") or "",
             "postal_address": buyer_address,
         },
-
-        # ─ Payment 
+        # ─ Payment
         "payment_means": [
             {
                 "payment_means_code": payment_means_code,
@@ -307,39 +309,35 @@ def build_invoice_payload(sales_invoice: str, irn: str) -> dict[str, Any]:
             }
         ],
         "payment_terms_note": doc.payment_terms_template or "",
-
-        # ─ Allowances (invoice-level discounts) 
+        # ─ Allowances (invoice-level discounts)
         **({"allowance_charge": allowance_charges} if allowance_charges else {}),
-
-        # ─ Tax 
+        # ─ Tax
         "tax_total": [
             {
                 "tax_amount": total_vat,
                 "tax_subtotal": tax_subtotals,
             }
         ],
-
-        # ─ Totals 
+        # ─ Totals
         "legal_monetary_total": {
             "line_extension_amount": round(total_line_extension, 2),
             "tax_exclusive_amount": tax_exclusive,
             "tax_inclusive_amount": tax_inclusive,
             "payable_amount": payable_amount,
         },
-
-        # ─ Lines 
+        # ─ Lines
         "invoice_line": invoice_lines,
     }
     return payload
 
+
 # ─ IRN Save[Draft] NRS Validation
 
-def validate_irn(irn: str, invoice_reference: str, business_id: str) -> dict[str, Any]:
-    """
-    POST=> /validate
-    Validates that the generated IRN is unique and correctly formatted before submission.
-    """
-    settings = _get_settings()
+def validate_irn(
+    irn: str, invoice_reference: str, business_id: str, company_name: str | None = None
+) -> dict[str, Any]:
+    """Validate the generated IRN is unique and correctly formatted before submission."""
+    settings = _get_settings(company_name)
     resp = requests.post(
         f"{_base_url(settings)}{_VALIDATE_IRN}",
         json={
@@ -354,18 +352,17 @@ def validate_irn(irn: str, invoice_reference: str, business_id: str) -> dict[str
         raise EComplianceError(f"IRN validation failed [{resp.status_code}]: {resp.text}")
     return resp.json() if resp.content else {}
 
+
 # ─ Submission
-#. 
+
 def submit_invoice_enqueued(sales_invoice: str) -> dict:
-    """
-    Updates in background queue when relevant lifecycle changes occur.
-    """
-    settings = _get_settings()
-    if not settings.einvoice_enabled:
+    """Queue the submission for background processing."""
+    
+    company_name = frappe.db.get_value("Sales Invoice", sales_invoice, "company")
+    settings = _get_settings(company_name)
+    if not settings.get("nrs_einvoice_enabled"):
         return {}
 
-    #"firs_app.utils.firs_invoice.sync_sales_invoice_to_einvoice",
-    # add action later
     frappe.enqueue(
         "nrs_compliance.utils.nrs_einvoice.submit_invoice",
         queue="long",
@@ -375,30 +372,32 @@ def submit_invoice_enqueued(sales_invoice: str) -> dict:
     )
     return {"queued": True}
 
-#. 
+
 def submit_invoice(sales_invoice: str) -> dict[str, Any]:
     """
-    Submission Process:
+    Submission process:
       1. Generate IRN
-      2. Check invoice schema for error POST=> /validate
-      3. Submit valid payload POST=> /sign 
+      2. Validate schema against NRS
+      3. Submit valid payload and sign invoice
     """
-     # from coy custom field
-    settings = _get_settings()
-   
-    if not settings.nrs_einvoice_enabled:
+    company_name = frappe.db.get_value("Sales Invoice", sales_invoice, "company")
+    settings = _get_settings(company_name)
+
+    if not settings.get("nrs_einvoice_enabled"):
         return {}
 
+    print(f"*****************> \n\n\n\n craeate NRS EInvocing \n\n")
     einvoice_doc = _get_or_create_einvoice(sales_invoice)
     if einvoice_doc.status == "Cleared":
         return {}
 
     max_retries = einvoice_doc.max_retries or _MAX_RETRIES
     if (einvoice_doc.retry_count or 0) >= max_retries:
-        # Stop auto-retrying and flag red for manual review instead of spinning
-        # forever as Auto-Retry.
         _update_einvoice(
-            einvoice_doc, {}, {}, "Failed",
+            einvoice_doc,
+            {},
+            {},
+            "Failed",
             f"Automatic retries exhausted ({max_retries}). Needs manual review — "
             "use the Nigeria → Submit to NRS button to retry.",
             irn=einvoice_doc.irn,
@@ -409,24 +408,20 @@ def submit_invoice(sales_invoice: str) -> dict[str, Any]:
         )
         return {}
 
-    # Respect B2B-only setting
     actual_buyer_tin = frappe.db.get_value(
         "Customer",
         frappe.db.get_value("Sales Invoice", sales_invoice, "customer"),
         "nrs_tin",
     ) or ""
 
-    # B2B only Company [or choose to activate for b2b only]
-    if settings.einvoice_b2b_only and not actual_buyer_tin:
+    if settings.get("einvoice_b2b_only") and not actual_buyer_tin:
         return {}
 
     try:
-        # Use existing IRN if already generated (retry scenario)
         irn = einvoice_doc.irn or generate_irn(sales_invoice, settings)
-
         payload = build_invoice_payload(sales_invoice, irn)
 
-        # Step 1: Validate
+        # Step 1: validate
         validate_resp = requests.post(
             f"{_base_url(settings)}{_VALIDATE_INVOICE_DATA}",
             json=payload,
@@ -435,27 +430,42 @@ def submit_invoice(sales_invoice: str) -> dict[str, Any]:
         )
 
         if validate_resp.status_code in (400, 422):
-            # NRS returns transient "try again later" errors as 400 too — those must
-            # auto-retry, not be marked permanently Failed.
             if _is_transient_nrs_error(validate_resp.text):
-                _update_einvoice(einvoice_doc, payload, {}, "Auto-Retry",
-                                 f"NRS temporarily unavailable (validate), will retry: {validate_resp.text}",
-                                 irn=irn)
-                _flag_retry_pending()
+                _update_einvoice(
+                    einvoice_doc,
+                    payload,
+                    {},
+                    "Auto-Retry",
+                    f"NRS temporarily unavailable (validate), will retry: {validate_resp.text}",
+                    irn=irn,
+                )
+                _flag_retry_pending(company_name)
                 return {}
-            _update_einvoice(einvoice_doc, payload, {}, "Failed",
-                             f"Validation error: {validate_resp.text}", irn=irn)
+            _update_einvoice(
+                einvoice_doc,
+                payload,
+                {},
+                "Failed",
+                f"Validation error: {validate_resp.text}",
+                irn=irn,
+            )
             raise EComplianceValidationError(
                 f"NRS validation error [{validate_resp.status_code}]: {validate_resp.text}"
             )
 
         if not validate_resp.ok:
-            _update_einvoice(einvoice_doc, payload, {}, "Auto-Retry",
-                             f"Validate step error: {validate_resp.text}", irn=irn)
-            _flag_retry_pending()
+            _update_einvoice(
+                einvoice_doc,
+                payload,
+                {},
+                "Auto-Retry",
+                f"Validate step error: {validate_resp.text}",
+                irn=irn,
+            )
+            _flag_retry_pending(company_name)
             return {}
 
-        # Step 2: Sign
+        # Step 2: sign
         sign_resp = requests.post(
             f"{_base_url(settings)}/{_SIGN_INVOICE_SCHEMA}",
             json=payload,
@@ -464,55 +474,85 @@ def submit_invoice(sales_invoice: str) -> dict[str, Any]:
         )
 
         if sign_resp.status_code in (400, 422):
-            # NRS often returns "unable to complete this operation at this time,
-            # kindly try again later" as a 400 during sign — that's transient and
-            # must auto-retry, not be marked permanently Failed.
             if _is_transient_nrs_error(sign_resp.text):
-                _update_einvoice(einvoice_doc, payload, {}, "Auto-Retry",
-                                 f"NRS temporarily unavailable (sign), will retry: {sign_resp.text}",
-                                 irn=irn)
-                _flag_retry_pending()
+                _update_einvoice(
+                    einvoice_doc,
+                    payload,
+                    {},
+                    "Auto-Retry",
+                    f"NRS temporarily unavailable (sign), will retry: {sign_resp.text}",
+                    irn=irn,
+                )
+                _flag_retry_pending(company_name)
                 return {}
-            _update_einvoice(einvoice_doc, payload, {}, "Failed",
-                             f"Sign error: {sign_resp.text}", irn=irn)
+            _update_einvoice(
+                einvoice_doc,
+                payload,
+                {},
+                "Failed",
+                f"Sign error: {sign_resp.text}",
+                irn=irn,
+            )
             raise EComplianceValidationError(
                 f"NRS sign error [{sign_resp.status_code}]: {sign_resp.text}"
             )
 
         if not sign_resp.ok:
-            _update_einvoice(einvoice_doc, payload, {}, "Auto-Retry",
-                             f"Sign step error: {sign_resp.text}", irn=irn)
-            _flag_retry_pending()
+            _update_einvoice(
+                einvoice_doc,
+                payload,
+                {},
+                "Auto-Retry",
+                f"Sign step error: {sign_resp.text}",
+                irn=irn,
+            )
+            _flag_retry_pending(company_name)
             return {}
 
         result = sign_resp.json() if sign_resp.content else {}
         csid = result.get("csid") or result.get("CSID") or ""
 
-        # Use NRS-returned QR if present; fall back to client-side RSA-encrypted QR
-        qr_data = result.get("qrCode") or result.get("QRCode") or result.get("qr_code") or ""
+        qr_data = (
+            result.get("qrCode")
+            or result.get("QRCode")
+            or result.get("qr_code")
+            or ""
+        )
         if not qr_data:
-            #from nigeria_compliance.nigeria_compliance.nrs.signing import generate_invoice_qr_data
             from nrs_compliance.nrs_compliance.controllers.api import generate_invoice_qr_data
+
             qr_data = generate_invoice_qr_data(irn, settings)
 
-        _update_einvoice(einvoice_doc, payload, result, "Submitted", "", irn=irn, csid=csid, qr_data=qr_data)
+        _update_einvoice(
+            einvoice_doc,
+            payload,
+            result,
+            "Submitted",
+            "",
+            irn=irn,
+            csid=csid,
+            qr_data=qr_data,
+        )
 
-        frappe.db.set_value("Sales Invoice", sales_invoice, {
-            "nrs_irn": irn,
-            "nrs_csid": csid,
-            "nrs_status": "Submitted",
-        })
+        frappe.db.set_value(
+            "Sales Invoice",
+            sales_invoice,
+            {
+                "nrs_irn": irn,
+                "nrs_csid": csid,
+                "nrs_status": "Submitted",
+            },
+        )
         return result
 
     except (EComplianceValidationError, EComplianceError):
         raise
     except Exception as e:
         _update_einvoice(einvoice_doc, {}, {}, "Auto-Retry", str(e))
-        _flag_retry_pending()
+        _flag_retry_pending(company_name)
         frappe.log_error(frappe.get_traceback(), "NRS e-Invoice Submission")
 
 
-#. 
 def _get_or_create_einvoice(sales_invoice: str):
     name = frappe.db.get_value("NRS EInvoice", {"sales_invoice": sales_invoice}, "name")
     if name:
@@ -521,6 +561,7 @@ def _get_or_create_einvoice(sales_invoice: str):
     inv = frappe.get_doc("Sales Invoice", sales_invoice)
     customer_kind = frappe.db.get_value("Customer", inv.customer, "nrs_invoice_kind") or ""
     buyer_tin = frappe.db.get_value("Customer", inv.customer, "nrs_tin") or ""
+
     if customer_kind in ("B2B", "B2C", "B2G"):
         invoice_kind = customer_kind
     elif buyer_tin:
@@ -543,9 +584,17 @@ def _get_or_create_einvoice(sales_invoice: str):
     frappe.db.commit()
     return doc
 
-#. 
-def _update_einvoice(doc, payload: dict, response: dict, status: str, error: str,
-                     irn: str = "", csid: str = "", qr_data: str = ""):
+
+def _update_einvoice(
+    doc,
+    payload: dict,
+    response: dict,
+    status: str,
+    error: str,
+    irn: str = "",
+    csid: str = "",
+    qr_data: str = "",
+):
     doc.status = status
     if irn:
         doc.irn = irn
@@ -571,6 +620,7 @@ def _update_einvoice(doc, payload: dict, response: dict, status: str, error: str
             )
         except (IndexError, TypeError):
             doc.vat_amount = 0
+
     if status == "Cleared":
         doc.cleared_at = now_datetime()
 
@@ -580,31 +630,29 @@ def _update_einvoice(doc, payload: dict, response: dict, status: str, error: str
     doc.save(ignore_permissions=True)
     frappe.db.commit()
 
-#. 
 def _is_transient_nrs_error(text: str) -> bool:
-    """True if an NRS 400/422 response is a transient 'try again later' condition
-    rather than a real payload/validation rejection."""
+    """Return True when the NRS 400/422 response is a transient retry condition."""
     t = (text or "").lower()
     return any(marker in t for marker in _TRANSIENT_NRS_MARKERS)
 
-def _flag_retry_pending():
+
+def _flag_retry_pending(company_name: str | None = None):
     # Do not commit here — caller is responsible for transaction boundaries
 
     # move it to company level
-    frappe.db.set_value(_APP_SETTINGS, _APP_SETTINGS, "is_retry_einvoice_pending", 1)
+    settings = _get_settings(company_name)
+    
+    frappe.db.set_value("Company", settings.get("name"), "is_retry_einvoice_pending", 1)
 
 # - Move block to app.py
-#. 
 def _attach_qr_code(einvoice_doc, qr_data: str):
-    """Generate a QR code PNG from qr_data and attach it to the Nigeria E-Invoice."""
+    """Generate a QR code PNG from qr_data and attach it to the e-invoice."""
     try:
         import base64
         import io
+
         import qrcode
 
-        # Low error-correction = fewer, larger modules, so a phone camera can read
-        # the dense (~344-char) encrypted payload at printed size. fit=True picks the
-        # smallest version that holds the data.
         qr = qrcode.QRCode(
             error_correction=qrcode.constants.ERROR_CORRECT_L,
             box_size=12,
@@ -623,7 +671,7 @@ def _attach_qr_code(einvoice_doc, qr_data: str):
             "content": base64.b64encode(buf.read()).decode(),
             "decode": True,
             "is_private": 0,
-            "attached_to_doctype": "Nigeria E-Invoice",
+            "attached_to_doctype": "NRS EInvoice",
             "attached_to_name": einvoice_doc.name,
             "attached_to_field": "qr_code",
         })
