@@ -136,7 +136,7 @@
   {
    "fieldname": "encrypted_qr_code",
    "fieldtype": "Attach Image",
-   "label": "Encrypted QR Code"
+   "label": "QR Code"
   },
   {
    "fieldname": "column_break_wpan",
@@ -205,7 +205,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-17 21:03:56.360281",
+ "modified": "2026-09-17 23:03:26.951999",
  "modified_by": "Administrator",
  "module": "NRS Compliance",
  "name": "NRS EInvoice",
