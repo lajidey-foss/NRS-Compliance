@@ -61,6 +61,8 @@ def _get_nrs_custom_fields():
                 "fieldtype": "Check",
                 "label": "Auto Submit on Invoice Submission",
                 "insert_after": "nrs_business_information",
+                "default": "1",
+                "read_only": 1,
             },
             {
                 "fieldname": "nrs_col_break_i",
@@ -153,7 +155,8 @@ def _get_nrs_custom_fields():
                 "fieldtype": "Check",
                 "label": "Is Unflag Retry Pending",
                 "insert_after": "nrs_service_id",
-                "description": "Internal flag. Set to 1 when a server-side NRS APP error occurs. Cleared by the retry cron job."
+                "description": "Internal flag. Set to 1, on nrs sync error.",
+                 "read_only": 1,
             },
             {
                 "fieldname": "nrs_details_section",
@@ -161,6 +164,7 @@ def _get_nrs_custom_fields():
                 "fieldtype": "Section Break",
                 "insert_after": "is_retry_einvoice_pending",
                 "collapsible": 1,
+                "hidden": 1,
             },
             {
                 "fieldname": "nrs_rc_number",
@@ -444,7 +448,8 @@ def set_default_compliance_settings():
     doc.base_url_sandbox = "https://eivc-k6z6d.ondigitalocean.app"
     doc.base_url_production = "https://api.einvoice.firs.gov.ng"
     doc.default_vat_rate = 7.5 
-    doc.prn_template = "{{invoice_id(e.g:INV00XXX)}}-{{service-id}}-{{YYYYMMDD(e.g:20251219)}}"
+    doc.einvoice_b2b_only = 1
+    doc.irn_generate_template = "{{invoice_id(e.g:INV00XXX)}}-{{service-id}}-{{YYYYMMDD(e.g:20251219)}}"
     #... add more default fields
     doc.insert(ignore_permissions=True)
 

@@ -143,13 +143,13 @@ after_migrate = "nrs_compliance.utils.tasks.after_migrate"
 # Document Events
 # ---------------
 # Hook on document methods and events
-#"before_submit": "nrs_compliance.nrs_compliance.overrides.service.nrs_submit_compliance",
+#"on_update": "nrs_compliance.nrs_compliance.overrides.service.nrs_submit_compliance",
 #"on_submit": "nrs_compliance.nrs_compliance.overrides.service.on_sales_invoice_submit",
 
 doc_events = {
 	"Sales Invoice": {
 		"validate": "nrs_compliance.nrs_compliance.overrides.service.fields_compliances",
-		"on_update": "nrs_compliance.nrs_compliance.overrides.service.nrs_submit_compliance",
+		"before_submit": "nrs_compliance.nrs_compliance.overrides.service.nrs_submit_compliance",
         "on_submit": "nrs_compliance.nrs_compliance.overrides.service.on_sales_invoice_submit",
 		
 	}

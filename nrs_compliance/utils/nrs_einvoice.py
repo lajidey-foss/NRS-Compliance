@@ -84,6 +84,7 @@ def build_invoice_payload(sales_invoice: str, irn: str) -> dict[str, Any]:
     """
     doc = frappe.get_doc("Sales Invoice", sales_invoice)
     settings = _get_settings(doc.company)
+    from nrs_compliance.utils.resources import get_quantity_code
 
     # ─ Business IDs
     business_id = (
@@ -121,10 +122,10 @@ def build_invoice_payload(sales_invoice: str, irn: str) -> dict[str, Any]:
                 "Sales Invoice", original_invoice, ["nrs_irn", "posting_date"]
             ) or ("", "")
             if original_irn:
-                billing_reference = [{"irn": original_irn, "issue_date": str(original_date)}]
+                billing_reference = [{"nrs_irn": original_irn, "issue_date": str(original_date)}]
 
     # ─ Invoice type
-    # TODO: Move this into a helper that resolves the correct invoice type code.
+    # !TODO: Move this into a helper that resolves the correct invoice type code.
     invoice_type_code = "381"
 
     # ─ Addresses
@@ -185,7 +186,7 @@ def build_invoice_payload(sales_invoice: str, irn: str) -> dict[str, Any]:
 
     # ─ Payment means
     # TODO: Build this from a helper instead of a hard-coded default.
-    payment_means_code = "97"
+    payment_means_code = "97" # Others / unknown payment mode (code)
     due_date = str(doc.due_date) if doc.get("due_date") else str(doc.posting_date)
 
     # ─ Line items
@@ -211,8 +212,7 @@ def build_invoice_payload(sales_invoice: str, irn: str) -> dict[str, Any]:
         hs_code = (item_f.get("nrs_hs_code") or "").strip()
         service_code = (item_f.get("nrs_service_code") or "").strip()
 
-        # TODO: resolve quantity code from UOM instead of defaulting to EA.
-        quantity_code = "EA"
+        quantity_code = get_quantity_code(row.uom or "" )
 
         line = {
             "invoiced_quantity": float(row.qty),
@@ -263,7 +263,7 @@ def build_invoice_payload(sales_invoice: str, irn: str) -> dict[str, Any]:
             }
         )
 
-    # "integrator_service_id": settings.get("einvoice_integrator_service_id") or "00000",
+    # !TODO"integrator_service_id": settings.get("einvoice_integrator_service_id") or "00000",
     payload: dict[str, Any] = {
         # ─ Invoice header
         "business_id": business_id,
@@ -386,7 +386,6 @@ def submit_invoice(sales_invoice: str) -> dict[str, Any]:
     if not settings.get("nrs_einvoice_enabled"):
         return {}
 
-    print(f"*****************> \n\n\n\n craeate NRS EInvocing \n\n")
     einvoice_doc = _get_or_create_einvoice(sales_invoice)
     if einvoice_doc.status == "Cleared":
         return {}
