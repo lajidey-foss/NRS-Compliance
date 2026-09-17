@@ -672,7 +672,7 @@ def _attach_qr_code(einvoice_doc, qr_data: str):
             "is_private": 0,
             "attached_to_doctype": "NRS EInvoice",
             "attached_to_name": einvoice_doc.name,
-            "attached_to_field": "qr_code",
+            "attached_to_field": "encrypted_qr_code",
         })
         file_doc.insert(ignore_permissions=True)
         einvoice_doc.qr_code = file_doc.file_url
