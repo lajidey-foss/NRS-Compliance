@@ -108,3 +108,21 @@ def sync_service_codes():
     frappe.db.commit()
     frappe.msgprint(f"Synced {count} service codes from NRS.", indicator="green", alert=True)
     return {"synced": count}
+
+
+def get_quantity_code(uom: str) -> str:
+    """
+    Maps an ERPNext UOM string to its corresponding standard code.
+    Defaults to 'EA' if the UOM is not found in the mapping list.
+    """
+    uom_mapping = {
+        "Each": "EA",
+        "Dozen": "DZN",
+        "Kg": "KGM",
+        "Gram": "GRM",
+        "Litre": "LTR"
+    }
+    # Normalizes "kg" or "KG" to "Kg" before checking the dictionary
+    normalized_uom = str(uom).strip().title()
+    # .get() looks up the key, and returns "EA" if the key doesn't exist
+    return uom_mapping.get(normalized_uom, "EA")

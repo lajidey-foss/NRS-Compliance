@@ -15,7 +15,7 @@
   "base_url_sandbox",
   "base_url_production",
   "column_break_oejy",
-  "prn_template",
+  "irn_generate_template",
   "tab_2_tab",
   "access_provider_section",
   "access_points_provider",
@@ -61,11 +61,6 @@
   {
    "fieldname": "column_break_oejy",
    "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "prn_template",
-   "fieldtype": "Code",
-   "label": "PRN Template"
   },
   {
    "collapsible": 1,
@@ -130,14 +125,22 @@
    "description": "Only submit invoices where the customer has a TIN. Uncheck to submit all invoices including B2C.",
    "fieldname": "einvoice_b2b_only",
    "fieldtype": "Check",
-   "label": "B2B Only (skip invoices without buyer TIN)"
+   "hidden": 1,
+   "label": "B2B Only (skip invoices without buyer TIN)",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "irn_generate_template",
+   "fieldtype": "Data",
+   "label": "Print IRN Template"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-09-16 10:12:45.140631",
+ "modified": "2026-09-17 17:27:25.536584",
  "modified_by": "Administrator",
  "module": "NRS Compliance",
  "name": "NRS Compliance Settings",
