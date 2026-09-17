@@ -666,7 +666,7 @@ def _attach_qr_code(einvoice_doc, qr_data: str):
 
         file_doc = frappe.get_doc({
             "doctype": "File",
-            "file_name": f"qr_{einvoice_doc.name}.png",
+            "file_name": f"QC_{einvoice_doc.name}.png",
             "content": base64.b64encode(buf.read()).decode(),
             "decode": True,
             "is_private": 0,
@@ -675,7 +675,7 @@ def _attach_qr_code(einvoice_doc, qr_data: str):
             "attached_to_field": "encrypted_qr_code",
         })
         file_doc.insert(ignore_permissions=True)
-        einvoice_doc.qr_code = file_doc.file_url
+        einvoice_doc.encrypted_qr_code = file_doc.file_url
     except ImportError:
         # qrcode missing — cannot render barcode; log and leave qr_code empty
         frappe.log_error(
