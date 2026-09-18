@@ -367,6 +367,7 @@ def _get_nrs_custom_fields():
             },
         ],
         # ─ Sales Invoice 
+        # nrs_qrcode
         "Sales Invoice": [
             {
                 "fieldname": "nrs_section",
@@ -424,6 +425,13 @@ def _get_nrs_custom_fields():
                     "Override the NRS payment means code on this invoice. "
                     "Leave blank to auto-detect from Mode of Payment."
                 ),
+            },
+            {
+                "fieldname": "nrs_qrcode",
+                "label": "NRS QR Code",
+                "fieldtype": "Attach Image",
+                "insert_after": "nrs_payment_means",
+                "read_only": 1,
             },
         ],
     }
