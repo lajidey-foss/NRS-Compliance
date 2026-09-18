@@ -45,7 +45,7 @@ def retry_unflag_einvoices():
 
         # put in consideration for slow network as nrs server will be slow
         frappe.enqueue(
-            "nrs_compliance.nrs_compliance.nrs_compliance.utils.nrs_einvoice.submit_invoice",
+            "nrs_compliance.utils.nrs_einvoice.submit_invoice",
             queue="default",
             timeout=180,
             job_name=f"einvoice_retry_{record.name}",
