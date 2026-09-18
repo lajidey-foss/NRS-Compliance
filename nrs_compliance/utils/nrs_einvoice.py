@@ -364,7 +364,7 @@ def submit_invoice_enqueued(sales_invoice: str) -> dict:
         return {}
 
     frappe.enqueue(
-        "nrs_compliance.utils.nrs_einvoice.submit_invoice",
+        "nrs_compliance.nrs_compliance.utils.nrs_einvoice.submit_invoice",
         queue="long",
         timeout=180,
         enqueue_after_commit=True,
