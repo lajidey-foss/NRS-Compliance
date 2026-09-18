@@ -466,7 +466,7 @@ def submit_invoice(sales_invoice: str) -> dict[str, Any]:
 
         # Step 2: sign
         sign_resp = requests.post(
-            f"{_base_url(settings)}/{_SIGN_INVOICE_SCHEMA}",
+            f"{_base_url(settings)}{_SIGN_INVOICE_SCHEMA}",
             json=payload,
             headers=_headers(settings),
             timeout=_TIMEOUT_LONG,
