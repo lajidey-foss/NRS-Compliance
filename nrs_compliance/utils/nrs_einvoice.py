@@ -540,6 +540,7 @@ def submit_invoice(sales_invoice: str) -> dict[str, Any]:
                 "nrs_irn": irn,
                 "nrs_csid": csid,
                 "nrs_status": "Submitted",
+                "nrs_encrypted_qrcode" : qr_data,
             },
         )
         return result
@@ -676,12 +677,6 @@ def _attach_qr_code(einvoice_doc, qr_data: str):
         })
         file_doc.insert(ignore_permissions=True)
         einvoice_doc.encrypted_qr_code = file_doc.file_url
-        frappe.db.set_value(
-            "Sales Invoice",
-            einvoice_doc.sales_invoice,
-            "nrs_qrcode",
-            file_doc.file_url,
-        )
     except ImportError:
         # qrcode missing — cannot render barcode; log and leave qr_code empty
         frappe.log_error(
