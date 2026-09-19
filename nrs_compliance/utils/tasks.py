@@ -429,17 +429,9 @@ def _get_nrs_custom_fields():
             {
                 "fieldname": "nrs_encrypted_qrcode",
                 "label": "NRS Encrypted QRcode",
-                "fieldtype": "Data",
+                "fieldtype": "Long Text",
                 "insert_after": "nrs_payment_means",
                 "read_only": 1,
-            },
-            {
-                "fieldname": "nrs_qrcode",
-                "label": "NRS QR Code",
-                "fieldtype": "Attach Image",
-                "insert_after": "nrs_encrypted_qrcode",
-                "read_only": 1,
-                "hidden": 1,
             },
         ],
     }
