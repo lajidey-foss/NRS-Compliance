@@ -15,6 +15,7 @@ def after_install():
 def after_migrate():
     """ include function to remove obsolete custom fields """
     create_nrs_custom_fields()
+    _remove_obsolete_custom_fields()
     #set_default_compliance_settings() # toggle on for developer testing
     frappe.db.commit()
 
@@ -367,7 +368,6 @@ def _get_nrs_custom_fields():
             },
         ],
         # ─ Sales Invoice 
-        # nrs_qrcode
         "Sales Invoice": [
             {
                 "fieldname": "nrs_section",
@@ -427,11 +427,19 @@ def _get_nrs_custom_fields():
                 ),
             },
             {
+                "fieldname": "nrs_encrypted_qrcode",
+                "label": "NRS Encrypted QRcode",
+                "fieldtype": "Data",
+                "insert_after": "nrs_payment_means",
+                "read_only": 1,
+            },
+            {
                 "fieldname": "nrs_qrcode",
                 "label": "NRS QR Code",
                 "fieldtype": "Attach Image",
-                "insert_after": "nrs_payment_means",
+                "insert_after": "nrs_encrypted_qrcode",
                 "read_only": 1,
+                "hidden": 1,
             },
         ],
     }
@@ -473,3 +481,13 @@ def before_uninstall():
             {"dt": doctype, "fieldname": ["in", [f["fieldname"] for f in fields]]},
         )
     frappe.db.commit()
+
+_OBSOLETE_CUSTOM_FIELDS = [
+    ("Sales Invoice", "nrs_qrcode"),
+]
+
+def _remove_obsolete_custom_fields():
+    for dt, fieldname in _OBSOLETE_CUSTOM_FIELDS:
+        name = frappe.db.get_value("Custom Field", {"dt": dt, "fieldname": fieldname})
+        if name:
+            frappe.delete_doc("Custom Field", name, ignore_permissions=True)
