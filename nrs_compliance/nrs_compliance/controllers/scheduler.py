@@ -16,6 +16,9 @@ def retry_unflag_einvoices():
         #settings = frappe.get_cached_doc("NRS Compliance Settings")
         settings = _get_settings()
     except Exception:
+        frappe.log_error(
+        frappe.get_traceback(),
+        "NRS EInvoice Retry Scheduler: Failed to load settings")
         return
 
     if not settings.get("nrs_einvoice_enabled") or not settings.get("is_retry_einvoice_pending"):
@@ -66,9 +69,9 @@ def _notify_einvoice_failed(sales_invoice: str):
         if not accounts_managers:
             accounts_managers = ["Administrator"]
 
-        subject = _("NRS Invoice Signing Failed: {0}").format(sales_invoice)
+        subject = _("NRS eInvoice Signing Failed: {0}").format(sales_invoice)
         body = _(
-            "The NRS e-invoice for Sales Invoice {0} has permanently failed after maximum "
+            "The NRS einvoice for Sales Invoice {0} has permanently failed after maximum "
             "retries. Please open the Nigeria E-Invoice record and resolve manually."
         ).format(sales_invoice)
 

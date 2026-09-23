@@ -688,4 +688,18 @@ def _attach_qr_code(einvoice_doc, qr_data: str):
         frappe.log_error(str(e), "NRS QR Code Generation")
         einvoice_doc.qr_code = ""
 
+def cancel_invoice(sales_invoice: str) -> dict[str, Any]:
+    """
+    Called on Sales Invoice cancellation.
+    NRS has no cancel endpoint — we mark the local record Cancelled only.
+    If the invoice was never signed, we can simply cancel locally.
+    """
+    name = frappe.db.get_value("NRS EInvoice", {"sales_invoice": sales_invoice}, "name")
+    if not name:
+        return {}
+
+    frappe.db.set_value("NRS EInvoice", name, "status", "Cancelled")
+    frappe.db.set_value("Sales Invoice", sales_invoice, "nrs_status", "Cancelled")
+    frappe.db.commit()
+    return {"cancelled": True}
 
