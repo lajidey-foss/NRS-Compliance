@@ -26,6 +26,13 @@ class NrsSalesInvoiceMixin:
             )
         return submit_invoice_enqueued(self.name)
 
+    @frappe.whitelist()
+    def cancel_einvoice(self) -> dict:
+        """Cancel the einvoice at NRS (called on Sales Invoice cancellation)."""
+        from nrs_compliance.utils.nrs_einvoice import cancel_invoice
+
+        return cancel_invoice(self.name)
+
 class NrsSalesInvoice(NrsSalesInvoiceMixin, SalesInvoice):
     pass
 

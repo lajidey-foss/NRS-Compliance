@@ -1,0 +1,39 @@
+{
+ "charts": [],
+ "content": "[{\"type\":\"header\",\"data\":{\"text\":\"NRS\"}}]",
+ "creation": "2026-09-19 13:43:14.409261",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "star",
+ "idx": 0,
+ "indicator_color": "green",
+ "is_hidden": 0,
+ "label": "NRS",
+ "links": [],
+ "modified": "2026-09-23 21:07:14.690457",
+ "modified_by": "Administrator",
+ "module": "NRS Compliance",
+ "name": "NRS",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [
+  {
+   "role": "Accounts User"
+  },
+  {
+   "role": "Accounts Manager"
+  },
+  {
+   "role": "Auditor"
+  }
+ ],
+ "sequence_id": 2.0,
+ "shortcuts": [],
+ "title": "NRS"
+}

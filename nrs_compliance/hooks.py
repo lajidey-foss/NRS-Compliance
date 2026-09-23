@@ -82,14 +82,14 @@ app_license = "mit"
 # Installation
 # ------------
 
+# before_install = "nrs_compliance.install.before_install"
 after_install = "nrs_compliance.utils.tasks.after_install"
 after_migrate = "nrs_compliance.utils.tasks.after_migrate"
-# before_install = "nrs_compliance.install.before_install"
 
 # Uninstallation
 # ------------
 
-# before_uninstall = "nrs_compliance.uninstall.before_uninstall"
+before_uninstall = "nrs_compliance.utils.tasks.before_uninstall"
 # after_uninstall = "nrs_compliance.uninstall.after_uninstall"
 
 # Integration Setup
@@ -145,12 +145,16 @@ after_migrate = "nrs_compliance.utils.tasks.after_migrate"
 # Hook on document methods and events
 #"on_update": "nrs_compliance.nrs_compliance.overrides.service.nrs_submit_compliance",
 #"on_submit": "nrs_compliance.nrs_compliance.overrides.service.on_sales_invoice_submit",
+# "on_update_after_submit": ""
 
 doc_events = {
 	"Sales Invoice": {
 		"validate": "nrs_compliance.nrs_compliance.overrides.service.fields_compliances",
 		"before_submit": "nrs_compliance.nrs_compliance.overrides.service.nrs_submit_compliance",
         "on_submit": "nrs_compliance.nrs_compliance.overrides.service.on_sales_invoice_submit",
+        #"on_update_after_submit": "nrs_compliance.nrs_compliance.overrides.service.on_sales_invoice_update_after_submit"
+        "before_cancel": "nrs_compliance.nrs_compliance.overrides.service.before_sales_invoice_cancel",
+        "on_cancel": "nrs_compliance.nrs_compliance.overrides.service.on_sales_invoice_cancel",
 		
 	}
 }

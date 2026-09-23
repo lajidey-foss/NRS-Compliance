@@ -130,3 +130,49 @@ def on_sales_invoice_submit(doc, method=None):
     
     submit_invoice_enqueued(doc.name)
 
+def before_sales_invoice_cancel(doc, method=None):
+    """
+    Prevent cancellation if the invoice has been submitted to (or cleared by) NRS.
+    """
+    settings = _get_settings_if_enabled(doc.company)
+    if not settings or not settings.einvoice_enabled:
+        return
+
+    einvoice = frappe.db.get_value(
+        "NRS EInvoice",
+        {"sales_invoice": doc.name},
+        ["status", "irn"],
+        as_dict=True,
+    )
+    if not einvoice:
+        return
+
+    if einvoice.status == "Cleared":
+        frappe.throw(
+            _(
+                "Sales Invoice {0} has been cleared by NRS with IRN: {1}. "
+                "Trigger Cancellation NRS eInvoice before cancelling this invoice."
+            ).format(doc.name, einvoice.irn)
+        )
+
+    if einvoice.status == "Submitted" and einvoice.irn:
+        frappe.throw(
+            _(
+                "Sales Invoice {0} has been submitted to NRS (IRN: {1}). "
+                "Cancel the e-Invoice at NRS before cancelling this invoice, "
+                "or use the Nigeria → Cancel e-Invoice action."
+            ).format(doc.name, einvoice.irn)
+        )
+
+def on_sales_invoice_cancel(doc, method=None):
+    """Cancel eInvoice locally when Sales Invoice is cancelled."""
+    settings = _get_settings_if_enabled(doc.company)
+    if not settings or not settings.einvoice_enabled:
+        return
+
+    #from nigeria_compliance.nigeria_compliance.nrs.einvoice import cancel_invoice
+    from nrs_compliance.utils.nrs_einvoice import cancel_invoice
+    try:
+        cancel_invoice(doc.name)
+    except Exception as e:
+        frappe.log_error(str(e), "NRS e-Invoice Cancel")
