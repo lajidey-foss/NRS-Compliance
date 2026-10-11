@@ -628,6 +628,13 @@ def _update_einvoice(
         _attach_qr_code(doc, qr_data)
 
     doc.save(ignore_permissions=True)
+    if doc.get("encrypted_qr_code") and doc.get("sales_invoice"):
+        frappe.db.set_value(
+            "Sales Invoice",
+            doc.sales_invoice,
+            "nrs_irn_qrcode",
+            doc.encrypted_qr_code,
+        )
     frappe.db.commit()
 
 def _is_transient_nrs_error(text: str) -> bool:
