@@ -433,6 +433,18 @@ def _get_nrs_custom_fields():
                 "insert_after": "nrs_payment_means",
                 "read_only": 1,
             },
+            {
+                "fieldname": "nrs_col_break_siii",
+                "fieldtype": "Column Break",
+                "insert_after": "nrs_encrypted_qrcode",
+            },
+            {
+                "fieldname": "nrs_irn_qrcode",
+                "label": "IRN QRcode",
+                 "fieldtype": "Attach Image",
+                "insert_after": "nrs_col_break_siii",
+                "read_only": 1,
+            }
         ],
     }
 
